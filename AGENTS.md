@@ -52,6 +52,8 @@ Vortex/
 
 ### 3) Spring Boot 版本与配置约定
 - Spring Boot 统一使用最新稳定版本（当前基线：`4.0.3`）。
+- 健康检查与管理端点统一使用依赖：`spring-boot-starter-actuator`。
+- Spring Boot 配置文件统一使用 YAML 风格（`application.yml`）。
 - 开启虚拟线程配置：
   - `spring.threads.virtual.enabled=true`
   - `spring.main.keep-alive=true`（涉及调度任务时必须显式配置）

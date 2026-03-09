@@ -1,0 +1,13 @@
+spring:
+  threads:
+    virtual:
+      enabled: true
+  main:
+    keep-alive: true
+
+management:
+  endpoints:
+    web:
+      base-path: /api
+      exposure:
+        include: health

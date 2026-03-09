@@ -23,7 +23,7 @@
 - Create: `back/pom.xml`
 - Create: `back/src/main/java/com/vortex/VortexApplication.java`
 - Create: `back/src/main/java/com/vortex/config/VirtualThreadConfig.java`
-- Create: `back/src/main/resources/application.properties`
+- Create: `back/src/main/resources/application.yml`
 - Test: `back/src/test/java/com/vortex/health/HealthControllerTest.java`
 
 **Step 1: Write the failing test**
@@ -50,12 +50,20 @@ Expected: FAIL with "No mapping for GET /api/health".
 
 **Step 3: Write minimal implementation**
 
-```properties
-# application.properties
-spring.threads.virtual.enabled=true
-spring.main.keep-alive=true
-management.endpoints.web.base-path=/api
-management.endpoints.web.exposure.include=health
+```yaml
+spring:
+  threads:
+    virtual:
+      enabled: true
+  main:
+    keep-alive: true
+
+management:
+  endpoints:
+    web:
+      base-path: /api
+      exposure:
+        include: health
 ```
 
 ```xml
