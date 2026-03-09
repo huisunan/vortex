@@ -57,6 +57,16 @@ Vortex/
   - `spring.main.keep-alive=true`（涉及调度任务时必须显式配置）
 - 任务执行/调度默认走 Spring Boot 的虚拟线程自动配置；如需自定义执行器，必须保持虚拟线程语义一致。
 
+### 4) 数据库与持久化约定
+- 当前默认数据库：`MySQL`。
+- 后续目标：逐步支持多数据库平台（如 PostgreSQL/SQL Server 等），设计上避免强绑定 MySQL 方言。
+- 表结构初始化与版本演进统一使用 `Flyway` 管理（`back/src/main/resources/db/migration`）。
+- 单表增删改查统一使用 `MyBatis-Plus`（官方站点：`https://baomidou.com/`）。
+- MVP 阶段优先使用 MyBatis-Plus 提供的基础能力，避免过早引入复杂 ORM 抽象层。
+
+### 5) 文档查询约定
+- 对于不清楚、易变化或需要实时确认的技术信息，优先通过 `Context7` 查询官方文档后再实现。
+
 ## 当前状态
 - 已初始化 Git 仓库。
 - 代码尚未开始实现，`back/` 与 `web/` 为待开发目录。

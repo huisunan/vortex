@@ -6,7 +6,7 @@
 
 **Architecture:** Use a modular monolith backend (`back`) with plugin-style node executors and strong idempotency/trace persistence. Use a React frontend (`web`) with a lightweight visual canvas, node configuration forms, and run monitoring pages. Keep MVP scope strict: manual trigger + single DB source + sync path only.
 
-**Tech Stack:** Java 25, Spring Boot, Gradle, PostgreSQL, Flyway, JUnit 5, Testcontainers, React, TypeScript, Vite, React Flow, TanStack Query, Vitest, Playwright.
+**Tech Stack:** Java 25, Spring Boot, Maven, MySQL, Flyway, JUnit 5, Testcontainers, React, TypeScript, Vite, React Flow, TanStack Query, Vitest, Playwright.
 
 ---
 
@@ -20,16 +20,17 @@
 ### Task 1: Bootstrap Backend Skeleton
 
 **Files:**
-- Create: `back/settings.gradle.kts`
-- Create: `back/build.gradle.kts`
+- Create: `back/pom.xml`
 - Create: `back/src/main/java/com/vortex/VortexApplication.java`
-- Create: `back/src/main/java/com/vortex/health/HealthController.java`
+- Create: `back/src/main/java/com/vortex/config/VirtualThreadConfig.java`
+- Create: `back/src/main/resources/application.properties`
 - Test: `back/src/test/java/com/vortex/health/HealthControllerTest.java`
 
 **Step 1: Write the failing test**
 
 ```java
-@WebMvcTest(HealthController.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 class HealthControllerTest {
   @Autowired MockMvc mockMvc;
 
@@ -44,32 +45,41 @@ class HealthControllerTest {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.health.HealthControllerTest -i`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=HealthControllerTest test`
 Expected: FAIL with "No mapping for GET /api/health".
 
 **Step 3: Write minimal implementation**
 
-```java
-@RestController
-@RequestMapping("/api")
-class HealthController {
-  @GetMapping("/health")
-  Map<String, String> health() {
-    return Map.of("status", "UP");
-  }
-}
+```properties
+# application.properties
+spring.threads.virtual.enabled=true
+spring.main.keep-alive=true
+management.endpoints.web.base-path=/api
+management.endpoints.web.exposure.include=health
+```
+
+```xml
+<!-- pom.xml -->
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.health.HealthControllerTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=HealthControllerTest test`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add back/settings.gradle.kts back/build.gradle.kts back/src/main back/src/test
-git commit -m "feat(back): bootstrap spring service and health endpoint"
+git add back/pom.xml back/src/main back/src/test
+git commit -m "feat(back): bootstrap service with actuator health and virtual threads"
 ```
 
 ### Task 2: Add Flow Definition Model and One-Platform Constraint
@@ -96,7 +106,7 @@ class FlowDefinitionValidatorTest {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.flow.service.FlowDefinitionValidatorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.flow.service.FlowDefinitionValidatorTest test`
 Expected: FAIL with "cannot find symbol FlowDefinitionValidator".
 
 **Step 3: Write minimal implementation**
@@ -111,7 +121,7 @@ public void validate(FlowDefinition flow) {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.flow.service.FlowDefinitionValidatorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.flow.service.FlowDefinitionValidatorTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -147,7 +157,7 @@ void should_fail_fast_when_http_generator_fails() {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.runid.RunIdServiceTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.runid.RunIdServiceTest test`
 Expected: FAIL with missing classes.
 
 **Step 3: Write minimal implementation**
@@ -164,7 +174,7 @@ public String generate(boolean useHttpGenerator, Map<String, Object> input) {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.runid.RunIdServiceTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.runid.RunIdServiceTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -199,7 +209,7 @@ void should_return_422_when_run_id_generation_fails() throws Exception {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.run.api.RunControllerTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.run.api.RunControllerTest test`
 Expected: FAIL with missing endpoint.
 
 **Step 3: Write minimal implementation**
@@ -218,7 +228,7 @@ ResponseEntity<?> start(@RequestBody StartRunRequest req) {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.run.api.RunControllerTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.run.api.RunControllerTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -254,7 +264,7 @@ void should_load_records_by_business_ids() {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.fetch.DbFetchNodeExecutorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.fetch.DbFetchNodeExecutorTest test`
 Expected: FAIL with missing executor class.
 
 **Step 3: Write minimal implementation**
@@ -268,7 +278,7 @@ public void execute(ExecutionContext ctx, Map<String, Object> config) {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.fetch.DbFetchNodeExecutorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.fetch.DbFetchNodeExecutorTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -281,7 +291,7 @@ git commit -m "feat(back): add node executor contract and db fetch node"
 ### Task 6: Add Filter/Transform Node (Expression + Script)
 
 **Files:**
-- Modify: `back/build.gradle.kts` (add JEXL + GraalJS deps)
+- Modify: `back/pom.xml` (add JEXL + GraalJS deps)
 - Create: `back/src/main/java/com/vortex/node/filter/FilterNodeExecutor.java`
 - Create: `back/src/main/java/com/vortex/node/transform/TransformNodeExecutor.java`
 - Create: `back/src/main/java/com/vortex/script/ScriptRuntime.java`
@@ -310,7 +320,7 @@ void should_apply_script_transform() {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.filter.FilterNodeExecutorTest --tests com.vortex.node.transform.TransformNodeExecutorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.filter.FilterNodeExecutorTest,com.vortex.node.transform.TransformNodeExecutorTest test`
 Expected: FAIL with missing executors.
 
 **Step 3: Write minimal implementation**
@@ -322,13 +332,13 @@ Expected: FAIL with missing executors.
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.filter.FilterNodeExecutorTest --tests com.vortex.node.transform.TransformNodeExecutorTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.filter.FilterNodeExecutorTest,com.vortex.node.transform.TransformNodeExecutorTest test`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add back/build.gradle.kts back/src/main/java/com/vortex/node/filter back/src/main/java/com/vortex/node/transform back/src/main/java/com/vortex/script back/src/test/java/com/vortex/node/filter back/src/test/java/com/vortex/node/transform
+git add back/pom.xml back/src/main/java/com/vortex/node/filter back/src/main/java/com/vortex/node/transform back/src/main/java/com/vortex/script back/src/test/java/com/vortex/node/filter back/src/test/java/com/vortex/node/transform
 git commit -m "feat(back): add expression filter and script transform nodes"
 ```
 
@@ -375,7 +385,7 @@ void should_ignore_duplicate_success_for_same_business_and_platform() {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.split.BatchSplitNodeExecutorTest --tests com.vortex.node.extract.JsonPathResultExtractorTest --tests com.vortex.mapping.MappingServiceTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.split.BatchSplitNodeExecutorTest,com.vortex.node.extract.JsonPathResultExtractorTest,com.vortex.mapping.MappingServiceTest test`
 Expected: FAIL with missing classes.
 
 **Step 3: Write minimal implementation**
@@ -388,7 +398,7 @@ Expected: FAIL with missing classes.
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.node.split.BatchSplitNodeExecutorTest --tests com.vortex.node.extract.JsonPathResultExtractorTest --tests com.vortex.mapping.MappingServiceTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.node.split.BatchSplitNodeExecutorTest,com.vortex.node.extract.JsonPathResultExtractorTest,com.vortex.mapping.MappingServiceTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -421,7 +431,7 @@ void should_return_trace_by_business_id() throws Exception {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.trace.api.TraceControllerTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.trace.api.TraceControllerTest test`
 Expected: FAIL with 404.
 
 **Step 3: Write minimal implementation**
@@ -435,7 +445,7 @@ TraceResponse byBusiness(@PathVariable String businessId) {
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.trace.api.TraceControllerTest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.trace.api.TraceControllerTest test`
 Expected: PASS.
 
 **Step 5: Commit**
@@ -571,7 +581,7 @@ test('operator can start run and inspect node metrics', async ({ page }) => {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd back; .\\gradlew.bat test --tests com.vortex.e2e.SyncFlowE2ETest`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml -Dtest=com.vortex.e2e.SyncFlowE2ETest test`
 Expected: FAIL.
 
 Run: `cd web; npx playwright test e2e/sync-flow.spec.ts`
@@ -586,7 +596,7 @@ Keep scope MVP-only (no CDC/no async polling).
 
 **Step 4: Run full verification**
 
-Run: `cd back; .\\gradlew.bat test`
+Run: `mvn -s .mvn-settings.xml -f back\pom.xml test`
 Expected: PASS.
 
 Run: `cd web; npm test && npx playwright test`
@@ -601,7 +611,7 @@ git commit -m "test: add e2e sync flow verification and release checklist"
 
 ## Final Verification Commands (Before PR)
 
-1. `cd back; .\\gradlew.bat clean test`
+1. `mvn -s .mvn-settings.xml -f back\pom.xml clean test`
 2. `cd web; npm ci && npm test`
 3. `cd web; npx playwright install --with-deps && npx playwright test`
 4. `git log --oneline -n 15` (确认提交粒度与顺序)
@@ -612,3 +622,6 @@ git commit -m "test: add e2e sync flow verification and release checklist"
 - 不实现异步查询节点。
 - 不实现多目标平台单 Flow。
 - 不引入复杂分布式编排（保持模块化单体）。
+
+
+
