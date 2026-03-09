@@ -10,6 +10,8 @@ Thumbs.db
 # Local tool state
 .claude/
 .codex/
+.m2/
+.mvn-settings.xml
 
 # Logs
 *.log
