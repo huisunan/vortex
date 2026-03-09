@@ -1,7 +1,13 @@
 package com.vortex.flow.domain;
 
-public record EdgeDefinition(
-        String fromNodeId,
-        String toNodeId
-) {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class EdgeDefinition {
+    private String fromNodeId;
+    private String toNodeId;
 }

@@ -1,10 +1,16 @@
 package com.vortex.flow.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.Map;
 
-public record NodeDefinition(
-        String nodeId,
-        String nodeType,
-        Map<String, Object> config
-) {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class NodeDefinition {
+    private String nodeId;
+    private String nodeType;
+    private Map<String, Object> config;
 }

@@ -8,7 +8,7 @@ public class FlowDefinitionValidator {
         if (flow == null) {
             throw new IllegalArgumentException("flow is required");
         }
-        if (flow.platformCode() == null || flow.platformCode().isBlank()) {
+        if (flow.getPlatformCode() == null || flow.getPlatformCode().isBlank()) {
             throw new IllegalArgumentException("platformCode is required");
         }
     }

@@ -69,6 +69,11 @@ Vortex/
 ### 5) 文档查询约定
 - 对于不清楚、易变化或需要实时确认的技术信息，优先通过 `Context7` 查询官方文档后再实现。
 
+### 6) Java 建模约定
+- 后端 Java 实体/DTO 统一使用普通 `class`，禁止使用 `record`。
+- 优先使用 `Lombok`（如 `@Data`、`@NoArgsConstructor`、`@AllArgsConstructor`）减少样板代码。
+- 需要序列化/反序列化的请求与响应对象，必须保留无参构造器与标准 getter/setter。
+
 ## 当前状态
 - 已初始化 Git 仓库。
 - 代码尚未开始实现，`back/` 与 `web/` 为待开发目录。
