@@ -1,0 +1,44 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDE
+.idea/
+.vscode/
+*.iml
+
+# Local tool state
+.claude/
+.codex/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Java / Gradle / Maven (back)
+back/.gradle/
+back/build/
+back/target/
+back/out/
+back/.mvn/wrapper/maven-wrapper.jar
+
+# Node / React (web)
+web/node_modules/
+web/dist/
+web/build/
+web/.next/
+web/.cache/
+web/coverage/
+web/.parcel-cache/
+
+# Test outputs
+coverage/
+reports/
