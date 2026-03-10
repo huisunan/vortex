@@ -1,16 +1,14 @@
 package com.vortex.mapping;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.vortex.mapping.entity.DataMappingEntity;
+import com.vortex.mapping.mapper.DataMappingMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 数据映射服务 - 维护内部 ID 与平台 ID 的映射关系
@@ -23,10 +21,10 @@ import java.util.Optional;
 @Service
 public class MappingService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final DataMappingMapper mapper;
 
-    public MappingService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public MappingService(DataMappingMapper mapper) {
+        this.mapper = mapper;
     }
 
     /**
@@ -40,21 +38,36 @@ public class MappingService {
      */
     @Transactional
     public boolean saveSuccess(String businessId, String platformCode, String platformId, String runId) {
-        String sql = """
-            INSERT INTO data_mapping (business_id, platform_code, platform_id, run_id, status, mapped_at)
-            VALUES (?, ?, ?, ?, 'SUCCESS', ?)
-            ON DUPLICATE KEY UPDATE
-                platform_id = IF(status != 'SUCCESS', VALUES(platform_id), platform_id),
-                status = IF(status != 'SUCCESS', 'SUCCESS', status),
-                run_id = IF(status != 'SUCCESS', VALUES(run_id), run_id),
-                mapped_at = IF(status != 'SUCCESS', VALUES(mapped_at), mapped_at)
-            """;
+        // 先查询是否已存在成功映射
+        DataMappingEntity existing = mapper.findByBusinessIdAndPlatform(businessId, platformCode);
         
-        int rows = jdbcTemplate.update(sql, 
-            businessId, platformCode, platformId, runId, 
-            Timestamp.valueOf(LocalDateTime.now()));
+        if (existing != null && "SUCCESS".equals(existing.getStatus())) {
+            // 已存在成功映射，不更新
+            return false;
+        }
         
-        return rows > 0;
+        if (existing != null) {
+            // 存在但状态不是 SUCCESS，更新
+            existing.setPlatformId(platformId);
+            existing.setStatus("SUCCESS");
+            existing.setRunId(runId);
+            existing.setMappedAt(LocalDateTime.now());
+            existing.setErrorCode(null);
+            existing.setErrorMessage(null);
+            mapper.updateById(existing);
+            return true;
+        } else {
+            // 不存在，插入新记录
+            DataMappingEntity entity = new DataMappingEntity();
+            entity.setBusinessId(businessId);
+            entity.setPlatformCode(platformCode);
+            entity.setPlatformId(platformId);
+            entity.setRunId(runId);
+            entity.setStatus("SUCCESS");
+            entity.setMappedAt(LocalDateTime.now());
+            mapper.insert(entity);
+            return true;
+        }
     }
 
     /**
@@ -63,111 +76,81 @@ public class MappingService {
     @Transactional
     public void saveFailure(String businessId, String platformCode, String errorCode, 
                            String errorMessage, String runId) {
-        String sql = """
-            INSERT INTO data_mapping (business_id, platform_code, error_code, error_message, run_id, status, mapped_at)
-            VALUES (?, ?, ?, ?, ?, 'FAILED', ?)
-            ON DUPLICATE KEY UPDATE
-                error_code = VALUES(error_code),
-                error_message = VALUES(error_message),
-                run_id = VALUES(run_id),
-                status = 'FAILED',
-                mapped_at = VALUES(mapped_at)
-            """;
+        DataMappingEntity existing = mapper.findByBusinessIdAndPlatform(businessId, platformCode);
         
-        jdbcTemplate.update(sql, businessId, platformCode, errorCode, errorMessage, 
-            runId, Timestamp.valueOf(LocalDateTime.now()));
+        if (existing != null) {
+            // 更新现有记录
+            existing.setStatus("FAILED");
+            existing.setErrorCode(errorCode);
+            existing.setErrorMessage(errorMessage);
+            existing.setRunId(runId);
+            existing.setMappedAt(LocalDateTime.now());
+            existing.setPlatformId(null);
+            mapper.updateById(existing);
+        } else {
+            // 插入新记录
+            DataMappingEntity entity = new DataMappingEntity();
+            entity.setBusinessId(businessId);
+            entity.setPlatformCode(platformCode);
+            entity.setErrorCode(errorCode);
+            entity.setErrorMessage(errorMessage);
+            entity.setRunId(runId);
+            entity.setStatus("FAILED");
+            entity.setMappedAt(LocalDateTime.now());
+            mapper.insert(entity);
+        }
     }
 
     /**
      * 查询映射记录
      */
     public Optional<MappingRecord> find(String businessId, String platformCode) {
-        String sql = """
-            SELECT business_id, platform_code, platform_id, status, error_code, 
-                   error_message, run_id, mapped_at
-            FROM data_mapping
-            WHERE business_id = ? AND platform_code = ?
-            """;
-        
-        try {
-            MappingRecord record = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
-                MappingRecord r = new MappingRecord();
-                r.setBusinessId(rs.getString("business_id"));
-                r.setPlatformCode(rs.getString("platform_code"));
-                r.setPlatformId(rs.getString("platform_id"));
-                r.setStatus(rs.getString("status"));
-                r.setErrorCode(rs.getString("error_code"));
-                r.setErrorMessage(rs.getString("error_message"));
-                r.setRunId(rs.getString("run_id"));
-                r.setMappedAt(rs.getTimestamp("mapped_at").toLocalDateTime());
-                return r;
-            }, businessId, platformCode);
-            
-            return Optional.ofNullable(record);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        DataMappingEntity entity = mapper.findByBusinessIdAndPlatform(businessId, platformCode);
+        return Optional.ofNullable(toRecord(entity));
     }
 
     /**
      * 按平台 ID 反查
      */
     public Optional<MappingRecord> findByPlatformId(String platformCode, String platformId) {
-        String sql = """
-            SELECT business_id, platform_code, platform_id, status, error_code,
-                   error_message, run_id, mapped_at
-            FROM data_mapping
-            WHERE platform_code = ? AND platform_id = ?
-            """;
-        
-        try {
-            MappingRecord record = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
-                MappingRecord r = new MappingRecord();
-                r.setBusinessId(rs.getString("business_id"));
-                r.setPlatformCode(rs.getString("platform_code"));
-                r.setPlatformId(rs.getString("platform_id"));
-                r.setStatus(rs.getString("status"));
-                r.setErrorCode(rs.getString("error_code"));
-                r.setErrorMessage(rs.getString("error_message"));
-                r.setRunId(rs.getString("run_id"));
-                r.setMappedAt(rs.getTimestamp("mapped_at").toLocalDateTime());
-                return r;
-            }, platformCode, platformId);
-            
-            return Optional.ofNullable(record);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        DataMappingEntity entity = mapper.findByPlatformId(platformCode, platformId);
+        return Optional.ofNullable(toRecord(entity));
     }
 
     /**
      * 批量查询映射状态
      */
-    public List<MappingRecord> findByBusinessIdsAndPlatform(String businessIds, String platformCode) {
-        String sql = "SELECT business_id, platform_code, platform_id, status, error_code, " +
-                   "error_message, run_id, mapped_at " +
-                   "FROM data_mapping " +
-                   "WHERE business_id IN (" + businessIds + ") AND platform_code = ?";
-        
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            MappingRecord r = new MappingRecord();
-            r.setBusinessId(rs.getString("business_id"));
-            r.setPlatformCode(rs.getString("platform_code"));
-            r.setPlatformId(rs.getString("platform_id"));
-            r.setStatus(rs.getString("status"));
-            r.setErrorCode(rs.getString("error_code"));
-            r.setErrorMessage(rs.getString("error_message"));
-            r.setRunId(rs.getString("run_id"));
-            r.setMappedAt(rs.getTimestamp("mapped_at").toLocalDateTime());
-            return r;
-        }, platformCode);
+    public List<MappingRecord> findByBusinessIdsAndPlatform(List<String> businessIds, String platformCode) {
+        List<DataMappingEntity> entities = mapper.findByBusinessIdsAndPlatform(businessIds, platformCode);
+        return entities.stream()
+                .map(this::toRecord)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 实体转记录
+     */
+    private MappingRecord toRecord(DataMappingEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        MappingRecord record = new MappingRecord();
+        record.setBusinessId(entity.getBusinessId());
+        record.setPlatformCode(entity.getPlatformCode());
+        record.setPlatformId(entity.getPlatformId());
+        record.setStatus(entity.getStatus());
+        record.setErrorCode(entity.getErrorCode());
+        record.setErrorMessage(entity.getErrorMessage());
+        record.setRunId(entity.getRunId());
+        record.setMappedAt(entity.getMappedAt());
+        return record;
     }
 
     /**
      * 映射记录
      */
-    @Data
-    @NoArgsConstructor
+    @lombok.Data
+    @lombok.NoArgsConstructor
     public static class MappingRecord {
         private String businessId;
         private String platformCode;
